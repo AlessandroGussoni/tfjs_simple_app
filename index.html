@@ -52,14 +52,14 @@
         const modelStatusEl = document.getElementById('modelStatus');
         const predictButton = document.getElementById('predict');
 
-        // Canvas setup
-        ctx.fillStyle = '#fff';  // Set background to white
+        //canvas general setup
+        ctx.fillStyle = '#fff';  
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 20;
         ctx.lineCap = 'round';
 
-        // Model loading
+        // model js loading 
         async function loadModel() {
             try {
                 model = await tf.loadLayersModel('./assets/model/model.json');
@@ -75,7 +75,7 @@
         }
         loadModel();
 
-        // Drawing functions
+        // drawing actions
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
@@ -102,29 +102,29 @@
             ctx.beginPath();
         }
 
-        // Clear the canvas
+        // clear canvas to let user draw again, this can be coupled with predict 
         document.getElementById('clear').addEventListener('click', () => {
             ctx.fillStyle = '#fff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             document.getElementById('result').textContent = '';
         });
 
-        // Predict function
+        // predict fn -> button
         predictButton.addEventListener('click', async () => {
             if (!model) {
                 console.log('Model not loaded yet');
                 return;
             }
 
-            // Get the image data
+            // parse img data from canvas
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const img = tf.browser.fromPixels(imageData, 1);
             const resized = tf.image.resizeBilinear(img, [28, 28]).toFloat();
 
-            // Normalize the image (0-255 to 0-1)
+            // rescale canvas data to nn format
             const normalized = resized.div(255.0);
             
-            // Invert the colors (1 - x) to match MNIST format (white digits on black background)
+            // Invert the colors (1 - x) to switch black and white
             const inverted = normalized.mul(-1).add(1);
 
             const batched = inverted.expandDims(0);
@@ -132,7 +132,7 @@
             const prediction = model.predict(batched);
             const result = prediction.argMax(1).dataSync()[0];
 
-            // Cleanup
+            // cleanup tensor and stuff
             img.dispose();
             resized.dispose();
             normalized.dispose();
@@ -140,7 +140,7 @@
             batched.dispose();
             prediction.dispose();
 
-            // Display the result
+            // print model output
             document.getElementById('result').textContent = `Predicted digit: ${result}`;
         });
 
