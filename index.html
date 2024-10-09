@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Digit Recognition</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #canvas {
+            border: 1px solid #000;
+            background-color: #fff;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #result, #modelStatus {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #modelStatus {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Draw a digit (0-9)</h1>
+    <canvas id="canvas" width="280" height="280"></canvas>
+    <button id="predict">Predict</button>
+    <button id="clear">Clear</button>
+    <div id="modelStatus">Loading model...</div>
+    <div id="result"></div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let model;
+        const modelStatusEl = document.getElementById('modelStatus');
+        const predictButton = document.getElementById('predict');
+
+        // Canvas setup
+        ctx.fillStyle = '#fff';  // Set background to white
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+
+        // Model loading
+        async function loadModel() {
+            try {
+                model = await tf.loadLayersModel('assets/model/model.json');
+                modelStatusEl.textContent = 'Model loaded successfully!';
+                modelStatusEl.style.color = 'green';
+                predictButton.disabled = false;
+                console.log('Model loaded');
+            } catch (error) {
+                modelStatusEl.textContent = 'Failed to load model. Check console for details.';
+                modelStatusEl.style.color = 'red';
+                console.error('Error loading model:', error);
+            }
+        }
+        loadModel();
+
+        // Drawing functions
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        // Clear the canvas
+        document.getElementById('clear').addEventListener('click', () => {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('result').textContent = '';
+        });
+
+        // Predict function
+        predictButton.addEventListener('click', async () => {
+            if (!model) {
+                console.log('Model not loaded yet');
+                return;
+            }
+
+            // Get the image data
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const img = tf.browser.fromPixels(imageData, 1);
+            const resized = tf.image.resizeBilinear(img, [28, 28]).toFloat();
+
+            // Normalize the image (0-255 to 0-1)
+            const normalized = resized.div(255.0);
+            
+            // Invert the colors (1 - x) to match MNIST format (white digits on black background)
+            const inverted = normalized.mul(-1).add(1);
+
+            const batched = inverted.expandDims(0);
+
+            const prediction = model.predict(batched);
+            const result = prediction.argMax(1).dataSync()[0];
+
+            // Cleanup
+            img.dispose();
+            resized.dispose();
+            normalized.dispose();
+            inverted.dispose();
+            batched.dispose();
+            prediction.dispose();
+
+            // Display the result
+            document.getElementById('result').textContent = `Predicted digit: ${result}`;
+        });
+
+        // Initially disable the predict button
+        predictButton.disabled = true;
+    </script>
+</body>
+</html>
