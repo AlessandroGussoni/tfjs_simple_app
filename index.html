@@ -62,7 +62,7 @@
         // Model loading
         async function loadModel() {
             try {
-                model = await tf.loadLayersModel('assets/model/model.json');
+                model = await tf.loadLayersModel('./assets/model/model.json');
                 modelStatusEl.textContent = 'Model loaded successfully!';
                 modelStatusEl.style.color = 'green';
                 predictButton.disabled = false;
